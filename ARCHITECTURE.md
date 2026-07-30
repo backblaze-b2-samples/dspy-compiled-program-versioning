@@ -4,17 +4,17 @@
 ## Components
 
 - **apps/web/** — Next.js 16 frontend (App Router, Tailwind v4, shadcn/ui)
-  - Dashboard with stats, upload chart, recent uploads
-  - File upload with drag-and-drop, progress tracking
-  - File browser with preview, download, delete
+  - Dashboard with run metrics and a recent-runs table
+  - Runs Library + create-run form + run detail (live progress, compiled program, demos, trace, scores, replay/delete/diff)
+  - Full-bucket B2 file browser with preview, download, delete
   - Dark mode via `next-themes`
 - **services/api/** — FastAPI backend (layered architecture)
-  - REST API for file upload, listing, deletion
-  - B2 S3 integration via boto3
-  - File metadata extraction (images, PDFs)
-  - Health check endpoint with B2 connectivity verification
-  - Structured JSON logging with request tracing
-  - Prometheus-format metrics endpoint
+  - REST API for optimization runs (`/runs*`) plus file listing/download/delete
+  - DSPy program optimization against a local Ollama model, contained in `repo/dspy_runner.py`
+  - Run bundles read/written on B2 via `repo/run_store.py` (S3-compatible API)
+  - B2 S3 integration via boto3 (single client, custom user agent)
+  - Health check endpoint with B2 connectivity verification; Ollama status via `/runs/ollama-status`
+  - Structured JSON logging with request tracing; Prometheus-format metrics endpoint
 - **packages/shared/** — TypeScript type definitions
   - Mirrors Pydantic models from the API
   - Consumed by `apps/web/` as workspace dependency
@@ -49,12 +49,13 @@ runtime/   FastAPI routes — calls service, never repo directly
 services/api/
   main.py                  App entrypoint, middleware, router registration
   app/
-    types/                 Pydantic models (FileMetadata, UploadStats, etc.)
-    config/                Settings loaded from environment
-    repo/                  B2 S3 client (data access layer)
-    service/               Business logic (upload, files, metadata)
-    runtime/               FastAPI route handlers
-  tests/                   pytest tests (structural + integration)
+    types/                 Pydantic models (runs, files, stats, etc.)
+    config/                Settings loaded from environment (B2 + Ollama)
+    repo/                  B2 S3 client + run_store (bundles) + dspy_runner (DSPy/Ollama)
+    service/               Business logic (runs, files)
+    runtime/               FastAPI route handlers (runs, files, health, metrics)
+    seed/                  Bundled demo task + train/dev datasets
+  tests/                   pytest tests (structural + integration; B2/DSPy mocked)
 ```
 
 ## Boundary Invariants
@@ -78,13 +79,14 @@ services/api/
 ## Data Stores
 
 - **Backblaze B2** — object storage (S3-compatible API)
-  - All uploaded files stored in a single bucket
-  - File listing and metadata via S3 `list_objects_v2` / `head_object`
-  - No application database — B2 is the sole data store
+  - Every optimization run is an append-only bundle under `runs/<run_id>/` (manifest, input, compiled program, demos, trace, scores) — see the run-bundle layout in [README.md](README.md).
+  - Run listing via S3 `list_objects_v2` (with a `/` delimiter for run prefixes); artifacts via `get_object` / `put_object`; downloads via `generate_presigned_url`.
+  - The run manifest (`run.json`) doubles as the status/versioning record — no application database. B2 is the sole data store.
 
 ## External Services
 
-- **Backblaze B2 S3 API** — file storage, retrieval, deletion, presigned URLs
+- **Backblaze B2 S3 API** — run-bundle storage, retrieval, deletion, presigned URLs
+- **Ollama** — local LLM runtime (`http://localhost:11434` by default) that DSPy compiles/evaluates against. No API key; accessed only through `repo/dspy_runner.py`.
 
 ## Trust Boundaries
 
@@ -96,10 +98,12 @@ See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 
 ## Data Flows
 
-- **Upload**: Browser -> `POST /upload` (multipart) -> API validates -> service orchestrates -> repo writes to B2 -> metadata extracted -> response
-- **List**: Browser -> `GET /files` -> service calls repo -> returns file list
-- **Download**: Browser -> `GET /files/{key}/download` -> service validates key -> repo generates presigned URL -> browser downloads
-- **Delete**: Browser -> `DELETE /files/{key}` -> service validates key -> repo deletes from B2
+- **Create run**: Browser -> `POST /runs` -> service validates config, writes queued manifest + input bundle to B2, launches a background thread, returns `{run_id, status}` immediately.
+- **Optimize (background)**: `service._execute_run` -> `repo/dspy_runner.run_optimization` compiles + evaluates against the local Ollama model -> `repo/run_store` writes compiled program, demos, trace, scores to B2 -> manifest transitions `queued -> running -> completed|failed`.
+- **Poll**: Browser -> `GET /runs/{run_id}` (every 2s while in flight) -> service assembles the detail from the B2 bundle.
+- **Diff / Replay**: `GET /runs/diff?a=&b=` compares two bundles; `POST /runs/{run_id}/replay` re-launches a run from a stored config.
+- **Delete**: `DELETE /runs/{run_id}` -> recursive prefix delete scoped to `runs/<run_id>/`.
+- **Browse**: `GET /files` / download / delete -> the full-bucket explorer over the same B2 bucket.
 
 ## Observability
 
@@ -122,10 +126,12 @@ silently drift from FastAPI. `GET /metrics` is intentionally server-only.
 
 ## Canonical Files
 
-- Layered API handler: `services/api/app/runtime/upload.py`
-- Service orchestration: `services/api/app/service/upload.py`
-- B2 data access (repo layer): `services/api/app/repo/b2_client.py`
-- Pydantic models: `services/api/app/types/` (`files.py`, `upload.py`, `stats.py`, `formatting.py`)
+- Layered API handler: `services/api/app/runtime/runs.py`
+- Service orchestration: `services/api/app/service/runs.py`
+- Provider adapter (DSPy/Ollama, contained): `services/api/app/repo/dspy_runner.py`
+- B2 run bundles (repo layer): `services/api/app/repo/run_store.py`
+- B2 S3 client (repo layer): `services/api/app/repo/b2_client.py`
+- Pydantic models: `services/api/app/types/` (`runs.py`, `files.py`, `stats.py`, `formatting.py`)
 - Config (pydantic-settings): `services/api/app/config/settings.py`
 - Structural tests: `services/api/tests/test_structure.py`
 - OpenAPI contract: `docs/api/openapi.json`
@@ -135,10 +141,13 @@ silently drift from FastAPI. `GET /metrics` is intentionally server-only.
 
 ## Core Features
 
-- [File Upload](docs/features/file-upload.md)
-- [File Browser](docs/features/file-browser.md)
+- [Optimization Runs](docs/features/optimization-runs.md)
+- [Compiled Program Versioning](docs/features/compiled-program-versioning.md)
+- [Run Library](docs/features/run-library.md)
+- [Evaluation Scores](docs/features/evaluation-scores.md)
+- [Diff and Replay](docs/features/diff-and-replay.md)
 - [Dashboard](docs/features/dashboard.md)
-- [Metadata Extraction](docs/features/metadata-extraction.md)
+- [File Browser](docs/features/file-browser.md)
 
 ## References
 

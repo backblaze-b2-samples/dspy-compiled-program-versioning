@@ -16,6 +16,7 @@ boto3==1.43.58
 botocore==1.43.58
 certifi==2026.7.22
 click==8.4.2
+dspy==2.6.27
 fastapi==0.140.13
 h11==0.16.0
 httpcore==1.0.9

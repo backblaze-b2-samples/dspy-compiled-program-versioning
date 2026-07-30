@@ -15,6 +15,50 @@
         "title": "Body_upload_upload_post",
         "type": "object"
       },
+      "CompiledProgram": {
+        "description": "The compiled program as persisted (human-diffable JSON state).",
+        "properties": {
+          "demos": {
+            "items": {
+              "$ref": "#/components/schemas/Demonstration"
+            },
+            "title": "Demos",
+            "type": "array"
+          },
+          "input_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "output_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Output Fields",
+            "type": "array"
+          },
+          "raw_state": {
+            "additionalProperties": true,
+            "title": "Raw State",
+            "type": "object"
+          },
+          "signature_instructions": {
+            "title": "Signature Instructions",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signature_instructions",
+          "input_fields",
+          "output_fields",
+          "demos",
+          "raw_state"
+        ],
+        "title": "CompiledProgram",
+        "type": "object"
+      },
       "DailyUploadCount": {
         "properties": {
           "date": {
@@ -31,6 +75,111 @@
           "uploads"
         ],
         "title": "DailyUploadCount",
+        "type": "object"
+      },
+      "Demonstration": {
+        "description": "One few-shot demonstration bootstrapped into the compiled program.",
+        "properties": {
+          "inputs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Inputs",
+            "type": "object"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning"
+          }
+        },
+        "required": [
+          "inputs",
+          "output"
+        ],
+        "title": "Demonstration",
+        "type": "object"
+      },
+      "EvalScores": {
+        "description": "Before/after scores on the held-out dev set.",
+        "properties": {
+          "baseline_correct": {
+            "title": "Baseline Correct",
+            "type": "integer"
+          },
+          "baseline_score": {
+            "title": "Baseline Score",
+            "type": "number"
+          },
+          "compiled_correct": {
+            "title": "Compiled Correct",
+            "type": "integer"
+          },
+          "compiled_score": {
+            "title": "Compiled Score",
+            "type": "number"
+          },
+          "dev_size": {
+            "title": "Dev Size",
+            "type": "integer"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "score_delta": {
+            "title": "Score Delta",
+            "type": "number"
+          }
+        },
+        "required": [
+          "metric",
+          "baseline_score",
+          "compiled_score",
+          "score_delta",
+          "dev_size",
+          "baseline_correct",
+          "compiled_correct"
+        ],
+        "title": "EvalScores",
+        "type": "object"
+      },
+      "FieldDiff": {
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "a",
+          "b",
+          "changed"
+        ],
+        "title": "FieldDiff",
         "type": "object"
       },
       "FileMetadata": {
@@ -321,6 +470,452 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "OllamaStatus": {
+        "description": "Reachability of the local Ollama server and whether the model is pulled.",
+        "properties": {
+          "available_models": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Models",
+            "type": "array"
+          },
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "configured_model": {
+            "title": "Configured Model",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "model_pulled": {
+            "title": "Model Pulled",
+            "type": "boolean"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reachable",
+          "base_url",
+          "configured_model",
+          "model_pulled",
+          "message"
+        ],
+        "title": "OllamaStatus",
+        "type": "object"
+      },
+      "RunConfig": {
+        "description": "The knobs that define a run \u2014 everything needed to reproduce it.",
+        "properties": {
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "max_bootstrapped_demos": {
+            "default": 2,
+            "maximum": 8.0,
+            "minimum": 0.0,
+            "title": "Max Bootstrapped Demos",
+            "type": "integer"
+          },
+          "max_labeled_demos": {
+            "default": 2,
+            "maximum": 8.0,
+            "minimum": 0.0,
+            "title": "Max Labeled Demos",
+            "type": "integer"
+          },
+          "metric": {
+            "default": "exact_match",
+            "title": "Metric",
+            "type": "string"
+          },
+          "model": {
+            "default": "llama3.2",
+            "title": "Model",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Notes",
+            "type": "string"
+          },
+          "optimizer": {
+            "default": "BootstrapFewShot",
+            "title": "Optimizer",
+            "type": "string"
+          },
+          "task": {
+            "default": "support_ticket_category",
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "RunConfig",
+        "type": "object"
+      },
+      "RunCreatedResponse": {
+        "properties": {
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "RunCreatedResponse",
+        "type": "object"
+      },
+      "RunDetail": {
+        "description": "Full run view \u2014 summary plus every stored artifact.",
+        "properties": {
+          "artifact_keys": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Artifact Keys",
+            "type": "array"
+          },
+          "compiled_program": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompiledProgram"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config": {
+            "$ref": "#/components/schemas/RunConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "demos": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Demonstration"
+            },
+            "title": "Demos",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvalScores"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trace": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            },
+            "title": "Trace",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "label",
+          "status",
+          "config",
+          "created_at"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
+      "RunDiff": {
+        "description": "Structured diff of two runs' compiled programs, demos, and scores.",
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/RunSummary"
+          },
+          "b": {
+            "$ref": "#/components/schemas/RunSummary"
+          },
+          "compiled_score_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled Score A"
+          },
+          "compiled_score_b": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled Score B"
+          },
+          "demo_count_a": {
+            "title": "Demo Count A",
+            "type": "integer"
+          },
+          "demo_count_b": {
+            "title": "Demo Count B",
+            "type": "integer"
+          },
+          "instructions_diff": {
+            "$ref": "#/components/schemas/FieldDiff"
+          },
+          "score_delta_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Delta A"
+          },
+          "score_delta_b": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Delta B"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "instructions_diff",
+          "demo_count_a",
+          "demo_count_b"
+        ],
+        "title": "RunDiff",
+        "type": "object"
+      },
+      "RunSummary": {
+        "description": "One row in the Runs Library list.",
+        "properties": {
+          "baseline_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Score"
+          },
+          "compiled_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled Score"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "optimizer": {
+            "title": "Optimizer",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "score_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Delta"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "label",
+          "status",
+          "task",
+          "model",
+          "optimizer",
+          "metric",
+          "created_at"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "TraceStep": {
+        "description": "One entry in the optimization trace timeline.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "step": {
+            "title": "Step",
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "phase",
+          "detail",
+          "timestamp"
+        ],
+        "title": "TraceStep",
+        "type": "object"
+      },
       "UploadStats": {
         "properties": {
           "total_downloads": {
@@ -397,8 +992,8 @@
     }
   },
   "info": {
-    "description": "File upload and management API backed by Backblaze B2",
-    "title": "OSS Starter Kit API",
+    "description": "Version, evaluate, and diff compiled DSPy programs \u2014 optimized against a local Ollama model and stored as append-only run bundles on Backblaze B2.",
+    "title": "DSPy Compiled Program Versioning API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -930,6 +1525,329 @@
         "summary": "Metrics",
         "tags": [
           "metrics"
+        ]
+      }
+    },
+    "/runs": {
+      "get": {
+        "operationId": "list_runs_endpoint_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response List Runs Endpoint Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Runs Endpoint",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "operationId": "create_run_endpoint_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCreatedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/diff": {
+      "get": {
+        "operationId": "diff_runs_endpoint_runs_diff_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "title": "A",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "title": "B",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diff Runs Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/ollama-status": {
+      "get": {
+        "operationId": "ollama_status_endpoint_runs_ollama_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OllamaStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ollama Status Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}": {
+      "delete": {
+        "operationId": "delete_run_endpoint_runs__run_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      },
+      "get": {
+        "operationId": "get_run_endpoint_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}/artifact": {
+      "get": {
+        "operationId": "artifact_url_endpoint_runs__run_id__artifact_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Artifact Url Endpoint",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}/replay": {
+      "post": {
+        "operationId": "replay_run_endpoint_runs__run_id__replay_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunCreatedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replay Run Endpoint",
+        "tags": [
+          "runs"
         ]
       }
     },

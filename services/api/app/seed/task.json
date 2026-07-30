@@ -1,0 +1,9 @@
+{
+  "task": "support_ticket_category",
+  "name": "Support-ticket category classification",
+  "description": "Classify a customer support ticket into exactly one category. A small, deterministic task that a tiny local Ollama model can learn from a handful of bootstrapped demonstrations.",
+  "input_field": "ticket",
+  "output_field": "category",
+  "categories": ["billing", "technical", "account", "shipping", "general"],
+  "instructions": "Classify the support ticket into exactly one of these categories: billing, technical, account, shipping, general. Answer with only the single category label."
+}

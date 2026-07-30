@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Upload,
+  FlaskConical,
+  Plus,
   FolderOpen,
   Settings,
   Sparkles,
@@ -37,7 +38,8 @@ interface CommandPaletteProps {
 
 const routes = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Upload", href: "/upload", icon: Upload },
+  { label: "Runs", href: "/runs", icon: FlaskConical },
+  { label: "New run", href: "/runs/new", icon: Plus },
   { label: "Files", href: "/files", icon: FolderOpen },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Design System", href: "/design", icon: Sparkles },

@@ -2,11 +2,27 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    b2_endpoint: str = "https://s3.us-west-004.backblazeb2.com"
-    b2_key_id: str = ""
+    # B2 storage (S3-compatible). Primary knob is B2_REGION (e.g. "us-east-005");
+    # the S3 endpoint is derived from it as https://s3.<region>.backblazeb2.com
+    # (see the `endpoint` property). No region is hardcoded — an unset region
+    # yields an obviously-broken host that startup validation rejects with a
+    # clear message. `b2_endpoint` stays as an optional override for non-standard
+    # hosts; leave it empty to use the derived endpoint.
+    b2_region: str = ""
+    b2_endpoint: str = ""
+    b2_application_key_id: str = ""
     b2_application_key: str = ""
     b2_bucket_name: str = ""
-    b2_public_url: str = ""
+    b2_public_url_base: str = ""
+
+    # Local DSPy program optimization runs against an Ollama model. No API key —
+    # Ollama is a local server. OLLAMA_MODEL is the default program LM; the
+    # create-run form can pick another tag from a known list.
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"
+
+    # Prefix under which every optimization run bundle is written in the bucket.
+    runs_prefix: str = "runs/"
 
     api_port: int = 8000
     # Interactive API docs (/docs, /redoc, /openapi.json). On by default for
@@ -66,6 +82,20 @@ class Settings(BaseSettings):
     download_count_file: str = ".data/download_count.json"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @property
+    def endpoint(self) -> str:
+        """Resolved S3 endpoint URL.
+
+        Uses the explicit `b2_endpoint` override when set (non-standard hosts),
+        otherwise derives it from `b2_region`. No region string is hardcoded in
+        source: a blank region produces `https://s3..backblazeb2.com`, which
+        fails the startup connectivity check with a legible error rather than
+        silently talking to the wrong region.
+        """
+        if self.b2_endpoint:
+            return self.b2_endpoint
+        return f"https://s3.{self.b2_region}.backblazeb2.com"
 
     @property
     def cors_origins(self) -> list[str]:

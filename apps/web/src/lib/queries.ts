@@ -8,19 +8,29 @@ import {
 } from "@tanstack/react-query";
 import {
   ApiError,
+  createRun,
   deleteFile,
+  deleteRun,
   getDownloadUrl,
   getFileDetail,
   getFiles,
   getFileStats,
   getHealth,
+  getOllamaStatus,
   getPreviewUrl,
+  getRun,
+  getRunDiff,
+  getRuns,
   getUploadActivity,
+  replayRun,
 } from "@/lib/api-client";
 import type {
   FileMetadata,
   FileMetadataDetail,
-} from "@vibe-coding-starter-kit/shared";
+  RunConfig,
+  RunDetail,
+  RunSummary,
+} from "@dcpv/shared";
 
 // Single source of truth for query keys. Keep these tightly scoped so that
 // invalidating "files" doesn't blow away unrelated caches, and so an IDE
@@ -35,6 +45,10 @@ export const qk = {
   preview: (key: string) => [...qk.all, "preview", key] as const,
   detail: (key: string) => [...qk.all, "detail", key] as const,
   health: () => [...qk.all, "health"] as const,
+  runs: () => [...qk.all, "runs"] as const,
+  run: (runId: string) => [...qk.all, "run", runId] as const,
+  runDiff: (a: string, b: string) => [...qk.all, "runDiff", a, b] as const,
+  ollamaStatus: () => [...qk.all, "ollamaStatus"] as const,
 };
 
 export type Health = Awaited<ReturnType<typeof getHealth>>;
@@ -167,5 +181,82 @@ export function useDeleteFile() {
       dropDeletedFileFromCache(qc, fileKey);
       qc.invalidateQueries({ queryKey: qk.all });
     },
+  });
+}
+
+// --- DSPy optimization runs ---
+
+// The Runs Library. Polls while any run is still queued/running so the list's
+// status badges and score deltas move from "running" to "completed" on their
+// own, without the user refreshing.
+export function useRuns() {
+  return useQuery<RunSummary[], ApiError>({
+    queryKey: qk.runs(),
+    queryFn: getRuns,
+    refetchInterval: (query) => {
+      const rows = query.state.data;
+      const active = rows?.some(
+        (r) => r.status === "queued" || r.status === "running",
+      );
+      return active ? 4000 : false;
+    },
+  });
+}
+
+// A single run's detail. Polls every 2s while the compile is in flight so the
+// detail page shows a real queued -> running -> completed progression, then
+// stops once the run reaches a terminal state.
+export function useRun(runId: string, { enabled = true }: QueryGate = {}) {
+  return useQuery<RunDetail, ApiError>({
+    queryKey: qk.run(runId),
+    queryFn: () => getRun(runId),
+    enabled: enabled && !!runId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "queued" || status === "running" ? 2000 : false;
+    },
+  });
+}
+
+export function useOllamaStatus({ enabled = true }: QueryGate = {}) {
+  return useQuery({
+    queryKey: qk.ollamaStatus(),
+    queryFn: getOllamaStatus,
+    enabled,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
+export function useRunDiff(a: string, b: string, { enabled = true }: QueryGate = {}) {
+  return useQuery({
+    queryKey: qk.runDiff(a, b),
+    queryFn: () => getRunDiff(a, b),
+    enabled: enabled && !!a && !!b,
+  });
+}
+
+export function useCreateRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (config: RunConfig) => createRun(config),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.runs() }),
+  });
+}
+
+export function useReplayRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, model }: { runId: string; model?: string }) =>
+      replayRun(runId, model),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.runs() }),
+  });
+}
+
+export function useDeleteRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => deleteRun(runId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.runs() }),
   });
 }

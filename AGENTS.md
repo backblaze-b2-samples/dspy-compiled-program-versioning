@@ -19,22 +19,22 @@ docs/exec-plans/   Execution plans and tech debt tracker
 infra/railway/     Deployment config
 ```
 
-## 2. Building on This Starter Kit
+## 2. App Structure & Domain
 
-When this repo is used as the foundation for a new app, the following pieces are part of the starter contract — keep them. Adapt only what the new use case actually requires.
+This app — **DSPy Compiled Program Versioning** — was built on the vibe-coding starter kit. It keeps the shared scaffolding and adds the optimization-run domain.
 
-**Keep as-is (do not strip, rename, or replace)**
-- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new screens with these primitives; never edit the generated `components/ui/` files directly. Restyling happens through tokens in `globals.css`.
-- **File Explorer.** `/files` route, `apps/web/src/app/files/`, and `apps/web/src/components/files/`. The Files sidebar entry in `apps/web/src/components/layout/app-sidebar.tsx` stays.
-- **Upload.** `/upload` route, `apps/web/src/app/upload/`, and `apps/web/src/components/upload/`. The Upload sidebar entry stays.
-- The sidebar nav itself (Dashboard, Upload, Files, Settings, plus the Design System utility link).
+**Core domain (the reason this app exists)**
+- **Optimization runs.** The primary entity. Backend: `services/api/app/repo/dspy_runner.py` (all DSPy/Ollama access, imported lazily), `repo/run_store.py` (B2 run bundles via the shared S3 client), `service/runs.py` (the Ingest→Optimize→Store→Evaluate→Query workflow, background thread), `runtime/runs.py` (the `/runs*` router), `types/runs.py`, and `app/seed/` (the bundled demo task + datasets). Frontend: `apps/web/src/app/runs/` and `apps/web/src/components/runs/`.
+- A run compiles a DSPy program against a **local Ollama model** and appends its input, compiled program, demos, trace, and before/after scores to B2 as an append-only bundle under `runs/<run_id>/`.
 
-**Adapt to the new use case**
-- **Dashboard.** `/` route and `apps/web/src/components/dashboard/` (stats cards, upload chart, recent uploads table) are illustrative defaults. Replace them with metrics, charts, and tables that reflect what the new app actually does (e.g. transcripts processed, embeddings indexed, classifications run). New aggregations must flow through the same `runtime -> service -> repo` layering and be exposed via TanStack Query hooks in `apps/web/src/lib/queries.ts` — no bare `useEffect + fetch`.
+**Kept from the starter (do not strip, rename, or replace)**
+- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new screens with these primitives; never edit generated `components/ui/` files directly. Restyle through tokens in `globals.css`.
+- **File Explorer.** `/files` route, `apps/web/src/app/files/`, and `apps/web/src/components/files/` — the full-bucket B2 explorer, complementary to the run-scoped Runs Library. The Files sidebar entry stays. The backend upload/metadata plumbing (`runtime/upload.py`, `service/upload.py`, `service/metadata.py`) is retained as the generic put/detail path that powers the explorer; there is no user-facing upload page.
+- The sidebar nav (Dashboard, Runs, Files, Settings, plus the Design System utility link).
+
+**Adapted to this app**
+- **Dashboard.** `/` route and `apps/web/src/components/dashboard/` show run metrics (total runs, best compiled score, best improvement, runs today) and a recent-runs table. Aggregations flow through TanStack Query hooks in `apps/web/src/lib/queries.ts` — no bare `useEffect + fetch`.
 - Update `docs/features/dashboard.md` in the same PR as any dashboard change (see §9).
-
-**Why this contract exists**
-- The UI kit, Files, and Upload pages are the reusable B2-backed scaffolding that makes this a starter kit — stripping them defeats the purpose. The dashboard is the only screen explicitly designed to be rewritten per app.
 
 ## 3. Architectural Invariants
 

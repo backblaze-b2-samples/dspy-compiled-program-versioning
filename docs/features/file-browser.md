@@ -2,7 +2,11 @@
 # Feature: File Browser
 
 ## Purpose
-List, preview, download, and delete files stored in Backblaze B2.
+The full Backblaze B2 bucket explorer: list, preview, download, and delete every
+object in the bucket — including the raw run-bundle artifacts written under
+`runs/`. This is complementary to the [Run Library](run-library.md), which is the
+curated, run-scoped view of the same data; the Files browser is the unfiltered,
+whole-bucket view.
 
 ## Used By
 - UI: `/files` page, file browser component
@@ -67,13 +71,13 @@ List, preview, download, and delete files stored in Backblaze B2.
 - Invalid file key (traversal attempt, empty key) → API returns 400
 - File key contains `/`, spaces, `#`, `?`, `%`, reserved route names, or suffixes like `/download` and `/preview` → web client sends the key as a query parameter before calling get/download/preview/delete routes
 - B2 unreachable → persistent error state with retry
-- Empty bucket → upload prompt with direct Upload action
+- Empty bucket → prompt to launch a run (a "New run" action; runs write the first objects)
 - Delete failure → API returns 500, toast error
 - Download presign slow or failed → the loading toast resolves into a success or an error toast; a browser that refuses the anchor click is reported, never silently swallowed
 - Cold bucket listing (nothing cached) → the one request that pays for the scan blocks; every later one is served from cache, including a stale snapshot while it refreshes in the background
 
 ## UX States
-- Empty: centered message with upload prompt and Upload action
+- Empty: centered message prompting a New run (runs write the first objects)
 - Loading: an on-screen "Loading files…" notice above the skeleton rows, escalating to "Still loading files…" plus an explanation at 4s and a "can take 20 seconds or more the first time, then it's cached" note at 12s. The words must never be `sr-only`: measured cold loads ran 2.8s-21s, and pulsing bars alone gave a sighted user no way to tell a slow listing from a hung one
 - Error: inline error state with Retry
 - Loaded: tree view with expand/collapse folders and focus/hover action menus

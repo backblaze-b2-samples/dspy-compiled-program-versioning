@@ -3,8 +3,14 @@ import type {
   FileMetadata,
   FileMetadataDetail,
   FileUploadResponse,
+  OllamaStatus,
+  RunConfig,
+  RunCreatedResponse,
+  RunDetail,
+  RunDiff,
+  RunSummary,
   UploadStats,
-} from "@vibe-coding-starter-kit/shared";
+} from "@dcpv/shared";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -28,6 +34,14 @@ export const API_CLIENT_ROUTES = {
   legacyFileMetadata: { method: "get", path: "/files/{key}" },
   legacyFileDelete: { method: "delete", path: "/files/{key}" },
   upload: { method: "post", path: "/upload" },
+  runs: { method: "get", path: "/runs" },
+  createRun: { method: "post", path: "/runs" },
+  ollamaStatus: { method: "get", path: "/runs/ollama-status" },
+  runDiff: { method: "get", path: "/runs/diff" },
+  runDetail: { method: "get", path: "/runs/{run_id}" },
+  replayRun: { method: "post", path: "/runs/{run_id}/replay" },
+  deleteRun: { method: "delete", path: "/runs/{run_id}" },
+  runArtifact: { method: "get", path: "/runs/{run_id}/artifact" },
 } as const satisfies Record<string, ApiClientRoute>;
 
 /** Typed API error with HTTP status code for caller-side branching. */
@@ -270,4 +284,55 @@ export function uploadFile(
     );
     xhr.send(formData);
   });
+}
+
+// --- DSPy optimization runs ---
+
+function runPath(template: string, runId: string): string {
+  return template.replace("{run_id}", encodeURIComponent(runId));
+}
+
+export async function getRuns() {
+  return apiFetch<RunSummary[]>(API_CLIENT_ROUTES.runs.path);
+}
+
+export async function getRun(runId: string) {
+  return apiFetch<RunDetail>(runPath(API_CLIENT_ROUTES.runDetail.path, runId));
+}
+
+export async function getOllamaStatus() {
+  return apiFetch<OllamaStatus>(API_CLIENT_ROUTES.ollamaStatus.path);
+}
+
+export async function createRun(config: RunConfig) {
+  return apiFetch<RunCreatedResponse>(API_CLIENT_ROUTES.createRun.path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+}
+
+export async function replayRun(runId: string, model?: string) {
+  const base = runPath(API_CLIENT_ROUTES.replayRun.path, runId);
+  const path = model ? `${base}?model=${encodeURIComponent(model)}` : base;
+  return apiFetch<RunCreatedResponse>(path, { method: "POST" });
+}
+
+export async function deleteRun(runId: string) {
+  return apiFetch<{ deleted: boolean; run_id: string; objects: number }>(
+    runPath(API_CLIENT_ROUTES.deleteRun.path, runId),
+    { method: "DELETE" }
+  );
+}
+
+export async function getRunDiff(a: string, b: string) {
+  const q = new URLSearchParams({ a, b }).toString();
+  return apiFetch<RunDiff>(`${API_CLIENT_ROUTES.runDiff.path}?${q}`);
+}
+
+export async function getRunArtifactUrl(runId: string, name: string) {
+  const base = runPath(API_CLIENT_ROUTES.runArtifact.path, runId);
+  return apiFetch<{ url: string }>(
+    `${base}?name=${encodeURIComponent(name)}`
+  );
 }

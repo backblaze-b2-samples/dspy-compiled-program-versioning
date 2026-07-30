@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FolderOpen, RefreshCw, Upload } from "lucide-react";
+import { FolderOpen, RefreshCw, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,7 @@ import {
   fileListTruncationNotice,
 } from "@/lib/file-list-limit";
 import { ancestorPaths, takePreviewKeyFromUrl } from "@/lib/preview-deep-link";
-import type { FileMetadata } from "@vibe-coding-starter-kit/shared";
+import type { FileMetadata } from "@dcpv/shared";
 
 export function FileBrowser() {
   const {
@@ -200,12 +200,12 @@ export function FileBrowser() {
             <EmptyState
               icon={FolderOpen}
               title="This bucket is empty"
-              description="Upload some files to see them listed here."
+              description="Launch an optimization run to write your first run bundle here."
               action={
                 <Button asChild size="sm">
-                  <Link href="/upload">
-                    <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                    Upload files
+                  <Link href="/runs/new">
+                    <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+                    New run
                   </Link>
                 </Button>
               }

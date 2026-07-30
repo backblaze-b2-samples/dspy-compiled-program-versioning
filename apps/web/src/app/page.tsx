@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { RecentUploadsTable } from "@/components/dashboard/recent-uploads-table";
-import { UploadChart } from "@/components/dashboard/upload-chart";
+import { RunsStatsCards } from "@/components/dashboard/runs-stats-cards";
+import { RecentRunsTable } from "@/components/dashboard/recent-runs-table";
 
 export default function DashboardPage() {
   return (
@@ -13,25 +12,19 @@ export default function DashboardPage() {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Overview of your Backblaze B2 storage activity.
+            Optimize, version, and audit compiled DSPy programs — stored as append-only
+            run bundles on Backblaze B2.
           </p>
         </div>
         <Button asChild size="sm" className="h-8">
-          <Link href="/upload">
-            <Upload className="h-3.5 w-3.5" />
-            Upload files
+          <Link href="/runs/new">
+            <Plus className="h-3.5 w-3.5" />
+            New run
           </Link>
         </Button>
       </div>
-      <StatsCards />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="animate-fade-in-up stagger-3">
-          <UploadChart />
-        </div>
-        <div className="animate-fade-in-up stagger-4">
-          <RecentUploadsTable />
-        </div>
-      </div>
+      <RunsStatsCards />
+      <RecentRunsTable />
     </div>
   );
 }

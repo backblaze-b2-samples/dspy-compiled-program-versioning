@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { FileBrowser } from "@/components/files/file-browser";
@@ -11,14 +11,16 @@ export default function FilesPage() {
         <div className="min-w-0">
           <h1 className="page-title">Files</h1>
           <p className="mt-1.5 max-w-prose text-sm text-muted-foreground">
-            Browse and manage your most recent uploads. Click a file to preview
-            it.
+            The full Backblaze B2 bucket explorer — every object, including the raw
+            run-bundle artifacts written under <code className="font-mono">runs/</code>.
+            This complements the Runs Library, which is the curated, run-scoped view.
+            Click a file to preview it.
           </p>
         </div>
         <Button asChild size="sm" className="h-8 shrink-0">
-          <Link href="/upload">
-            <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-            Upload files
+          <Link href="/runs/new">
+            <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+            New run
           </Link>
         </Button>
       </div>

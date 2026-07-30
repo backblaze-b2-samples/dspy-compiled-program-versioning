@@ -2,10 +2,16 @@
 # Feature: Settings
 
 ## Purpose
-Show what a settings page can look like when you build on this starter kit — a
-profile, notification/quota preferences, and a default view — while being
-explicit that only the preferences the kit can actually honour do anything. Today
-that is Theme; the rest is a labelled demonstration.
+Show what a settings page can look like — a profile, notification/quota
+preferences, and a default view — while being explicit that only the preferences
+the app can actually honour do anything. Today that is Theme; the rest is a
+labelled demonstration.
+
+The app's real configuration is not on this page. **Backblaze B2** (`B2_APPLICATION_KEY_ID`,
+`B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_REGION`) and **Ollama** (`OLLAMA_BASE_URL`,
+`OLLAMA_MODEL`) are configured in the repo-root `.env` (see `.env.example`) and validated
+at API startup. Ollama reachability and whether the configured model is pulled are surfaced
+live on the **New run** form via `GET /runs/ollama-status`.
 
 ## Used By
 - UI: `/settings` page (`SettingsForm`, `DangerZone`)

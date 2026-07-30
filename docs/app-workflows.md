@@ -3,18 +3,24 @@
 
 User journeys inside the application.
 
-## Upload Files
+## Launch an Optimization Run
 
-- User navigates to `/upload`
-- Drops or selects files in the dropzone
-- Client validates file size (max 100MB) and type
-- A determinate progress bar tracks the bytes leaving the browser; once they are all sent the row switches to "Storing in B2..." with an *indeterminate* sweeping bar for the server-side phase (put_object + checksums + metadata). That phase has no percentage to report — measured at 25s on a 54MB file — and a bar parked at a full 100% read as finished-but-stuck
-- On success: toast notification, green checkmark, and a "View in Files" link through to the browser
-- On failure: red status icon with error message
-- User can clear completed uploads
-- The queue lives in an app-wide provider: navigating to another page keeps the upload running, shows an "Uploading N files" indicator in the header, and keeps the duplicate-upload guard armed
-- Reloading or closing mid-upload asks for confirmation first; if the upload dies anyway, the next load says which file didn't finish
-- See: [File Upload](features/file-upload.md)
+- User navigates to `/runs/new`
+- The form shows the local Ollama status (reachable? model pulled?) so a missing model is caught before launch, not deep in a compile
+- User picks finite options via selectors — task, optimizer, model, metric, bootstrapped/labeled demo counts — with safe defaults pre-filled (a one-click sound demo run); only the label and optional notes are free text
+- Submitting `POST /runs` returns immediately with a `run_id`; the user lands on the run detail page
+- The compile runs in a background thread against the local model; the detail page shows a "Compiling program…" loader and polls the run's `run.json` status (`queued → running → completed|failed`)
+- On completion: a before/after scorecard, the compiled program (signature + demos), the optimization trace, and per-artifact presigned downloads — all read from the run's append-only bundle in B2
+- If Ollama is unreachable or the model isn't pulled, the run is recorded as `failed` with an actionable message instead of crashing
+- See: [Optimization Runs](features/optimization-runs.md)
+
+## Inspect, Replay, Delete, or Diff a Run
+
+- User navigates to `/runs` (the Runs Library) and opens a run
+- **Replay**: re-runs this run's exact config (optionally against a new model) as a brand-new versioned run — the original is untouched
+- **Delete**: behind a confirm dialog, recursively deletes every object under `runs/<run_id>/` only — never other runs
+- **Diff vs…**: pick another run to compare instructions, demonstration counts, and dev-set scores side by side at `/runs/diff?a=&b=`
+- See: [Run Library](features/run-library.md), [Diff and Replay](features/diff-and-replay.md)
 
 ## Browse and Manage Files
 
@@ -24,22 +30,21 @@ User journeys inside the application.
 - Files displayed in tree view with folders and type-specific icons
 - Folders auto-expand on load until the *majority* of the listed files are reachable without clicking, so the page's own "click a file" instruction is always actionable. Stopping at the first visible file was not enough: one stray top-level object left the other 99 sealed in collapsed folders while the page claimed to show 100
 - Clicking a file row opens its preview; the per-row actions menu (preview / download / delete) is always visible, on every viewport
-- Arriving at `/files?preview=<key>` expands that file's folders and opens its preview directly. This is how the ⌘K palette and the dashboard's recent-uploads rows hand off a *specific* file; the param is consumed on arrival so it doesn't re-fire later
+- Arriving at `/files?preview=<key>` expands that file's folders and opens its preview directly. This is how the ⌘K palette hands off a *specific* file; the param is consumed on arrival so it doesn't re-fire later
 - **Preview**: opens dialog with image/PDF preview + metadata panel, and the file's Download / Delete actions — the advertised "click a file" path offers everything the row menu does. The loading state holds until the media paints; a failure offers "Open in a new tab". The preview URL is signed with `Content-Disposition: inline` so PDFs render in place
 - **Download**: shows a pending state on the row plus a toast while the presigned URL is fetched, then starts the download via an anchor click (which, unlike a popup, still works if the click's user activation expired during a slow presign). Failures are reported; the click can never silently do nothing
 - **Delete**: the confirmation dialog stays open showing "Deleting..." until the request settles, then the row disappears with the toast (optimistic cache update) and the list reconciles with the server. The dialog is held deliberately — Radix closes on action click by default, which dismissed the only pending state and left the row looking untouched while the delete was still in flight
-- Empty bucket shows "No files found" with upload prompt
+- Empty bucket shows a prompt to launch a run (runs write the first objects)
 - See: [File Browser](features/file-browser.md)
 
 ## View Dashboard
 
 - User navigates to `/` (home)
-- Three parallel API calls load: stats, recent files, upload activity — all served from one shared bucket listing that the API warms at startup
-- While stats load, the page states it in words above the cards rather than showing silent skeletons
-- Stats cards show: total files, storage used, uploads today, total downloads
-- Upload chart shows last 7 days of upload activity as bar chart
-- Recent uploads table shows last 10 files with filename, size, type, date. Each filename links to that file's preview on `/files` — `/files` teaches "click a file to preview it", so the same gesture here has to answer rather than being inert text
-- Empty state: "No files uploaded yet" messages
+- `useRuns()` loads the run summaries (one cached query, shared with the Runs Library)
+- Stat cards show: total runs, best compiled score, best improvement, runs today
+- The recent-runs table shows the 8 newest runs with status and before→after delta; each row links to that run's detail
+- The list polls while any run is still `queued`/`running`, so a running→completed transition appears without a refresh
+- Empty state: "No runs yet" with a link to launch one
 - See: [Dashboard](features/dashboard.md)
 
 ## Change Preferences

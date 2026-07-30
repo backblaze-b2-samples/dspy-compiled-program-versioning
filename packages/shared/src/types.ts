@@ -60,3 +60,113 @@ export interface UploadStats {
   uploads_today: number;
   total_downloads: number;
 }
+
+// --- DSPy optimization runs ---
+
+export type RunStatus = "queued" | "running" | "completed" | "failed";
+
+export interface RunConfig {
+  label: string;
+  task: string;
+  optimizer: string;
+  model: string;
+  metric: string;
+  max_bootstrapped_demos: number;
+  max_labeled_demos: number;
+  notes: string;
+}
+
+export interface Demonstration {
+  inputs: Record<string, string>;
+  reasoning: string | null;
+  output: string;
+}
+
+export interface TraceStep {
+  step: number;
+  phase: string;
+  detail: string;
+  timestamp: string;
+}
+
+export interface EvalScores {
+  metric: string;
+  baseline_score: number;
+  compiled_score: number;
+  score_delta: number;
+  dev_size: number;
+  baseline_correct: number;
+  compiled_correct: number;
+}
+
+export interface CompiledProgram {
+  signature_instructions: string;
+  input_fields: string[];
+  output_fields: string[];
+  demos: Demonstration[];
+  raw_state: Record<string, unknown>;
+}
+
+export interface RunSummary {
+  run_id: string;
+  label: string;
+  status: RunStatus;
+  task: string;
+  model: string;
+  optimizer: string;
+  metric: string;
+  baseline_score: number | null;
+  compiled_score: number | null;
+  score_delta: number | null;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+export interface RunDetail {
+  run_id: string;
+  label: string;
+  status: RunStatus;
+  config: RunConfig;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+  compiled_program: CompiledProgram | null;
+  demos: Demonstration[];
+  trace: TraceStep[];
+  scores: EvalScores | null;
+  artifact_keys: string[];
+}
+
+export interface RunCreatedResponse {
+  run_id: string;
+  status: RunStatus;
+}
+
+export interface FieldDiff {
+  field: string;
+  a: string;
+  b: string;
+  changed: boolean;
+}
+
+export interface RunDiff {
+  a: RunSummary;
+  b: RunSummary;
+  instructions_diff: FieldDiff;
+  demo_count_a: number;
+  demo_count_b: number;
+  score_delta_a: number | null;
+  score_delta_b: number | null;
+  compiled_score_a: number | null;
+  compiled_score_b: number | null;
+}
+
+export interface OllamaStatus {
+  reachable: boolean;
+  base_url: string;
+  configured_model: string;
+  model_pulled: boolean;
+  available_models: string[];
+  message: string;
+}
