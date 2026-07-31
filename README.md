@@ -7,6 +7,28 @@ Each optimization run compiles an improved DSPy program (prompts + bootstrapped 
 
 **The only credentials you need are B2 keys.** The LLM is a local Ollama model — no second API key, no per-token billing. B2 is exercised entirely through the **S3-compatible API** with a custom user agent and standardized `B2_*` env vars.
 
+## What it looks like
+
+**Dashboard** — total runs, best compiled score, best improvement, and runs-today metrics above a recent-runs table.
+
+![Dashboard with run metrics and a recent-runs table](docs/images/dashboard.png)
+
+**Runs Library** — every optimization run versioned on B2, with status, model, optimizer, and before→after score delta.
+
+![Runs Library listing every optimization run with before and after scores](docs/images/runs-library.png)
+
+**New run** — a one-click create form with selectors for task, optimizer, model, metric, and demo counts, gated by a live Ollama health check.
+
+![New optimization run form with a live Ollama health check](docs/images/new-run.png)
+
+**Run detail** — the compiled prompt, bootstrapped demonstrations, optimization trace, before/after scorecard, and the run's downloadable B2 run-bundle artifacts.
+
+![Run detail showing the compiled program, demonstrations, trace, scorecard, and B2 artifacts](docs/images/run-detail.png)
+
+**Diff runs** — two compiled versions compared across config, dev-set scores, and signature instructions.
+
+![Diff view comparing two compiled program versions](docs/images/run-diff.png)
+
 ## Why B2 for this workflow
 
 Prompt optimization is expensive to redo and easy to lose. A compiled DSPy program is a real artifact — prompts, bootstrapped demonstrations, and the scores that justify them. Keeping every compiled version in B2 turns an ephemeral `optimizer.compile()` call into a **durable, comparable, rollback-capable history**:
