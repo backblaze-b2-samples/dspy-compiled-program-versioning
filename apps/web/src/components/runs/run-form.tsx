@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -87,6 +87,19 @@ export function RunForm() {
       model: ollama?.configured_model ?? DEFAULTS.model,
     },
   });
+
+  // `defaultValues` is captured at mount, before `useOllamaStatus()` resolves,
+  // so `model` falls back to the hard-coded DEFAULTS.model ("llama3.2"). Once
+  // the status arrives, sync the field to the actually configured/pulled model
+  // so accepting the form's defaults launches a run that actually runs. Skip
+  // once the user has picked a model themselves so a manual choice stays sticky.
+  const configuredModel = ollama?.configured_model;
+  const modelIsDirty = form.formState.dirtyFields.model;
+  useEffect(() => {
+    if (configuredModel && !modelIsDirty) {
+      form.setValue("model", configuredModel);
+    }
+  }, [configuredModel, modelIsDirty, form]);
 
   const onSubmit = (values: RunFormValues) => {
     createRun.mutate(

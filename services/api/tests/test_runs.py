@@ -93,6 +93,67 @@ async def test_list_runs(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_list_runs_skips_foreign_manifest(client, monkeypatch):
+    """A foreign/malformed manifest under runs/ (e.g. one written by another app,
+    missing run_id/created_at) is skipped, not 500-ing the whole Runs Library."""
+    foreign = {"id": "abc", "name": "not-a-dspy-run"}  # no run_id / created_at
+    monkeypatch.setattr(
+        runs_service.run_store, "list_run_ids", lambda: ["r1", "foreign"]
+    )
+    monkeypatch.setattr(
+        runs_service.run_store,
+        "get_json",
+        lambda k: foreign if "foreign" in k else _manifest(),
+    )
+    resp = await client.get("/runs")
+    assert resp.status_code == 200
+    rows = resp.json()
+    assert [r["run_id"] for r in rows] == ["r1"]
+
+
+def test_execute_run_streams_stage(monkeypatch):
+    """Each optimizer stage is streamed into the manifest as it completes, so the
+    polled detail page shows an advancing stage instead of a frozen spinner."""
+    writes: list[dict] = []
+    monkeypatch.setattr(
+        runs_service.run_store, "get_json", lambda k: _manifest("r1", status="queued")
+    )
+    monkeypatch.setattr(
+        runs_service.run_store, "put_json", lambda k, o: writes.append(dict(o))
+    )
+    monkeypatch.setattr(runs_service.run_store, "put_jsonl", lambda k, rows: None)
+
+    def fake_run(*, emit, **kwargs):
+        for phase in ("ingest", "baseline", "optimize", "evaluate", "done"):
+            emit(phase, f"{phase} detail")
+        return {
+            "signature_instructions": "classify",
+            "input_fields": ["ticket"],
+            "output_fields": ["category"],
+            "raw_state": {},
+            "demos": [],
+            "scores": {
+                "metric": "exact_match",
+                "baseline_score": 0.3,
+                "compiled_score": 0.8,
+                "score_delta": 0.5,
+                "dev_size": 3,
+                "baseline_correct": 1,
+                "compiled_correct": 2,
+            },
+        }
+
+    monkeypatch.setattr(runs_service.dspy_runner, "run_optimization", fake_run)
+
+    config = runs_service.RunConfig(**VALID_BODY)
+    runs_service._execute_run("r1", config, {"task": {}, "trainset": [], "devset": []})
+
+    streamed = [w["stage"] for w in writes if "stage" in w]
+    assert streamed[:5] == ["ingest", "baseline", "optimize", "evaluate", "done"]
+    assert writes[-1]["status"] == "completed"
+
+
+@pytest.mark.asyncio
 async def test_get_run_detail_not_found(client, monkeypatch):
     monkeypatch.setattr(runs_service.run_store, "get_json", lambda k: {})
     resp = await client.get("/runs/missing")

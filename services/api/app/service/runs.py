@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 
 _SEED_DIR = Path(__file__).resolve().parent.parent / "seed"
 
+# Keys `_summary` reads without a default; a manifest under runs/ that lacks them
+# is foreign/partial (shared bucket, incremental writes) and must be skipped.
+_REQUIRED_MANIFEST_KEYS = ("run_id", "created_at")
+
 
 class RunValidationError(Exception):
     def __init__(self, detail: str):
@@ -128,9 +132,10 @@ def _execute_run(run_id: str, config: RunConfig, seed: dict) -> None:
     trace: list[dict] = []
 
     def emit(phase: str, detail: str) -> None:
-        trace.append(
-            {"step": len(trace) + 1, "phase": phase, "detail": detail, "timestamp": _now()}
-        )
+        trace.append({"step": len(trace) + 1, "phase": phase, "detail": detail, "timestamp": _now()})
+        # Stream the current stage into the polled manifest (advancing spinner).
+        manifest["stage"] = phase
+        run_store.put_json(run_store.manifest_key(run_id), manifest)
 
     try:
         result = dspy_runner.run_optimization(
@@ -144,31 +149,20 @@ def _execute_run(run_id: str, config: RunConfig, seed: dict) -> None:
             base_url=settings.ollama_base_url,
             emit=emit,
         )
-        run_store.put_json(
-            run_store.compiled_key(run_id),
-            {
-                "signature_instructions": result["signature_instructions"],
-                "input_fields": result["input_fields"],
-                "output_fields": result["output_fields"],
-                "raw_state": result["raw_state"],
-            },
-        )
+        compiled_fields = ("signature_instructions", "input_fields", "output_fields", "raw_state")
+        run_store.put_json(run_store.compiled_key(run_id), {k: result[k] for k in compiled_fields})
         run_store.put_json(run_store.demos_key(run_id), result["demos"])
         run_store.put_jsonl(run_store.trace_key(run_id), trace)
         run_store.put_json(run_store.scores_key(run_id), result["scores"])
 
-        manifest["status"] = "completed"
-        manifest["completed_at"] = _now()
-        manifest["baseline_score"] = result["scores"]["baseline_score"]
-        manifest["compiled_score"] = result["scores"]["compiled_score"]
-        manifest["score_delta"] = result["scores"]["score_delta"]
+        manifest.update(status="completed", completed_at=_now(), **{
+            k: result["scores"][k] for k in ("baseline_score", "compiled_score", "score_delta")
+        })
         run_store.put_json(run_store.manifest_key(run_id), manifest)
         logger.info("Run completed: run_id=%s delta=%s", run_id, manifest["score_delta"])
     except Exception as exc:
         emit("failed", str(exc))
-        manifest["status"] = "failed"
-        manifest["completed_at"] = _now()
-        manifest["error"] = str(exc)
+        manifest.update(status="failed", completed_at=_now(), error=str(exc))
         run_store.put_jsonl(run_store.trace_key(run_id), trace)
         run_store.put_json(run_store.manifest_key(run_id), manifest)
         logger.warning("Run failed: run_id=%s error=%s", run_id, exc)
@@ -196,8 +190,11 @@ def list_runs() -> list[RunSummary]:
     summaries: list[RunSummary] = []
     for run_id in run_store.list_run_ids():
         manifest = run_store.get_json(run_store.manifest_key(run_id))
-        if manifest:
+        # Skip foreign/partial manifests so one can't 500 the whole list.
+        if manifest and all(k in manifest for k in _REQUIRED_MANIFEST_KEYS):
             summaries.append(_summary(manifest))
+        elif manifest:
+            logger.warning("Skipping foreign/malformed manifest under runs/%s/", run_id)
     summaries.sort(key=lambda s: s.created_at, reverse=True)
     return summaries
 
@@ -231,6 +228,7 @@ def get_run_detail(run_id: str) -> RunDetail:
         error=manifest.get("error"),
         compiled_program=compiled_program,
         demos=demos,
+        stage=manifest.get("stage"),
         trace=[TraceStep(**t) for t in trace_raw],
         scores=EvalScores(**scores_raw) if scores_raw else None,
         artifact_keys=run_store.list_artifact_keys(run_id),

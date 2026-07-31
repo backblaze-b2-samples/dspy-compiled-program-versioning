@@ -60,6 +60,17 @@ const DELTA_CLASS: Record<"up" | "down" | "flat", string> = {
 
 const ARTIFACTS = ["manifest", "input", "compiled", "demos", "trace", "scores"] as const;
 
+// Friendly labels for the coarse stages the backend streams into `run.stage`
+// while a compile is in flight, so the loader advances through the pipeline
+// instead of showing one static string the whole time.
+const STAGE_LABELS: Record<string, string> = {
+  ingest: "Ingesting task & datasets…",
+  baseline: "Scoring the zero-shot baseline…",
+  optimize: "Optimizing (bootstrapping demonstrations)…",
+  evaluate: "Evaluating the compiled program…",
+  done: "Finalizing…",
+};
+
 export function RunDetailView({ runId }: { runId: string }) {
   const router = useRouter();
   const { data: run, isLoading, error, refetch } = useRun(runId);
@@ -79,6 +90,7 @@ export function RunDetailView({ runId }: { runId: string }) {
   }
 
   const inFlight = run.status === "queued" || run.status === "running";
+  const stageLabel = (run.stage && STAGE_LABELS[run.stage]) || "Compiling program…";
   const otherRuns = allRuns.filter((r) => r.run_id !== run.run_id);
 
   const onReplay = () =>
@@ -207,7 +219,7 @@ export function RunDetailView({ runId }: { runId: string }) {
       {inFlight && (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-12">
-            <GeneratingLoader size="lg" label="Compiling program…" />
+            <GeneratingLoader size="lg" label={stageLabel} />
             <p className="max-w-md text-center text-sm text-muted-foreground">
               Bootstrapping demonstrations against {run.config.model} and evaluating
               before/after on the dev set. This page updates itself as the run

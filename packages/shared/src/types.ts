@@ -131,6 +131,10 @@ export interface RunDetail {
   created_at: string;
   completed_at: string | null;
   error: string | null;
+  /** Coarse live-progress the optimizer streams into the manifest as each stage
+   *  completes (ingest/baseline/optimize/evaluate/done); polled by the detail
+   *  page so the in-flight view shows an advancing stage. */
+  stage: string | null;
   compiled_program: CompiledProgram | null;
   demos: Demonstration[];
   trace: TraceStep[];

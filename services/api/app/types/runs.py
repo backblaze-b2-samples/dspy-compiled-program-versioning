@@ -103,6 +103,10 @@ class RunDetail(BaseModel):
     created_at: datetime
     completed_at: datetime | None = None
     error: str | None = None
+    # Coarse live-progress the optimizer streams into the manifest as each stage
+    # completes (ingest/baseline/optimize/evaluate/done); the detail page polls
+    # it so the in-flight view shows an advancing stage, not a frozen spinner.
+    stage: str | None = None
     compiled_program: CompiledProgram | None = None
     demos: list[Demonstration] = []
     trace: list[TraceStep] = []
